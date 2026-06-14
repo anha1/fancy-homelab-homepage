@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>LAN Dash & Speed Test</title>
+<meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width"/>
+<style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d10;
+      --surface: #11151a;
+      --surface-2: #161b22;
+      --border: #222831;
+      --text: #e6e8ea;
+      --muted: #9aa4b2;
+      --accent: #00d2ff;
+      --success: #00e676;
+      --error: #ff3366;
+      --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      --radius: 12px;
+      --space: clamp(10px, 2vw, 16px);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      font: 500 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 10px;
+    }
+
+    .wrap {
+      width: min(1000px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Speed Test Section */
+    .speed-test-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: var(--shadow);
+    }
+
+    .speed-test-section h1 {
+      font-weight: 300;
+      font-size: 1.4rem;
+      margin: 0 0 16px 0;
+      letter-spacing: 1px;
+    }
+
+    button {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 12px 36px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 1.6rem;
+      font-weight: 600;
+      transition: background 0.2s, transform 0.1s, border-color 0.2s;
+    }
+
+    button:disabled {
+      color: #555;
+      cursor: not-allowed;
+    }
+
+    button:hover:not(:disabled) {
+      background: #1c222b;
+      border-color: var(--muted);
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    #result {
+      margin-top: 12px;
+      font-size: 1rem;
+      text-align: center;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+      height: 84px; /* Fixed height prevents tiles from jumping */
+      transition: color 0.3s ease;
+    }
+
+    #result.done-text { color: var(--success); }
+    #result.error-text { color: var(--error); }
+    .epic-text { color: #dd00f3; text-shadow: 0 0 10px #dd00f3; font-weight: 600; }
+    .muted-text { color: var(--muted); font-style: italic; }
+
+    /* Standard Progress Bar */
+    .meter {
+      width: min(100%, 400px);
+      height: 18px;
+      background: #0f1318;
+      border-radius: 9px;
+      overflow: hidden;
+      margin-top: 16px;
+      border: 1px solid #1a2028;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
+      position: relative;
+      transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+
+    .meter.active { box-shadow: inset 0 2px 5px rgba(0,0,0,0.8), 0 0 16px color-mix(in srgb, var(--accent) 30%, transparent); }
+
+    .fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #3a7bd5 0%, var(--accent) 100%);
+      border-radius: 9px;
+      transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease, box-shadow 0.4s ease;
+      position: relative;
+    }
+
+    .meter.active:not(.done) .fill::before {
+      content: "";
+      position: absolute;
+      right: 0; top: 0;
+      height: 100%;
+      width: 30px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8));
+      filter: blur(4px);
+      z-index: 2;
+    }
+
+    .meter.done .fill {
+      background: var(--success);
+      box-shadow: 0 0 16px color-mix(in srgb, var(--success) 40%, transparent);
+    }
+
+    /* Transition Wait Animation */
+    .fill.waiting {
+      animation: breathe 1s infinite alternate ease-in-out;
+    }
+    
+    @keyframes breathe {
+      0% { filter: brightness(1); }
+      100% { filter: brightness(0.5); }
+    }
+
+    /* Ping Phase Mode */
+    .meter.epic-container {
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.8), 0 0 30px rgba(221, 0, 243, 0.5);
+      border-color: #dd00f3;
+    }
+
+    .fill.epic {
+      background: linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3, #dd00f3);
+      background-size: 1800% 1800%;
+      animation: rainbow-blast 2s ease infinite;
+      box-shadow: 0 0 15px #dd00f3, 0 0 30px #1ddde8;
+      border-radius: 9px;
+    }
+
+    @keyframes rainbow-blast {
+      0% { background-position: 0% 82%; }
+      50% { background-position: 100% 19%; }
+      100% { background-position: 0% 82%; }
+    }
+
+    /* Services List Section */
+    ul.links {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: var(--space);
+    }
+
+    /* Muted Colorful Tiles */
+    a.tile {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 64px;
+      text-decoration: none;
+      color: inherit;
+      background: linear-gradient(180deg,
+        hsl(var(--tile-hue, 210deg), 35%, 16%) 0%,
+        hsl(var(--tile-hue, 210deg), 40%, 11%) 100%
+      );
+      border: 1px solid hsl(var(--tile-hue, 210deg), 30%, 22%);
+      border-radius: var(--radius);
+      padding: clamp(10px, 2vmin, 16px);
+      box-shadow: 0 0 0 0 rgba(0,0,0,0.0);
+      transition: transform 120ms ease, box-shadow 160ms ease, border-color 120ms ease;
+      position: relative; /* Anchor for absolute ping badge */
+    }
+
+    a.tile span.name {
+      display: block;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      color: hsl(var(--tile-hue, 210deg), 50%, 85%);
+      font-size: 1.05rem;
+    }
+
+    /* Ping Badge - Absolute positioning prevents layout shifts */
+    .ping-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      font-size: 0.7rem;
+      font-family: monospace;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.4);
+      color: var(--muted);
+      opacity: 0;
+      transition: opacity 0.3s ease, color 0.3s ease, text-shadow 0.3s ease;
+      pointer-events: none;
+    }
+
+    .ping-badge.show { opacity: 1; }
+    .ping-badge.up { color: var(--success); text-shadow: 0 0 5px rgba(0, 230, 118, 0.4); }
+    .ping-badge.down { color: var(--error); text-shadow: 0 0 5px rgba(255, 51, 102, 0.4); }
+
+    a.tile:hover,
+    a.tile:focus-visible {
+      border-color: hsl(var(--tile-hue, 210deg), 65%, 50%);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow), 0 4px 16px hsla(var(--tile-hue, 210deg), 60%, 15%, 0.6);
+      outline: none;
+    }
+
+    a.tile:active { transform: translateY(-1px); }
+
+    .tile:focus-visible { box-shadow: 0 0 0 3px hsla(var(--tile-hue, 210deg), 70%, 50%, 0.35), var(--shadow); }
+
+    .error-text { color: var(--error); text-align: center; grid-column: 1 / -1; }
+
+    @media (prefers-reduced-motion: reduce) {
+      a.tile, .fill, .fill.epic { animation: none; transition: none; }
+      .fill.waiting { animation: none; }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+  <div class="speed-test-section">
+    <h1>LAN Speed Test</h1>
+    <button id="start">Start</button>
+    <div class="meter" id="meter-container"><div class="fill" id="fill"></div></div>
+    <div id="result"></div>
+  </div>
+
+  <ul class="links" id="services-list">
+  </ul>
+</div>
+
+<script>
+  let activeServices = [];
+  let persistentSpeedData = "";
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const servicesList = document.getElementById('services-list');
+    try {
+      const response = await fetch('/services.json?dummy=' + Date.now());
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      activeServices = await response.json();
+      const hueStep = 360 / activeServices.length;
+
+      servicesList.innerHTML = activeServices.map((srv, index) => {
+        const hue = Math.round(index * hueStep);
+        return `
+          <li>
+            <a class="tile" href="${srv.url}" rel="noopener noreferrer" style="--tile-hue: ${hue}deg;">
+              <span class="name">${srv.name}</span>
+              <div class="ping-badge" id="ping-${index}"></div>
+            </a>
+          </li>
+        `;
+      }).join('');
+    } catch (err) {
+      servicesList.innerHTML = `<li class="error-text">Failed to load /services.json:<br>${err.message}</li>`;
+    }
+  });
+
+  const fixedSizeBytes = 100 * 1024 * 1024; // 100MB
+  const meterContainer = document.getElementById('meter-container');
+  const fill = document.getElementById('fill');
+  const result = document.getElementById('result');
+  const btn = document.getElementById('start');
+
+  btn.onclick = start;
+
+  async function start() {
+    btn.disabled = true;
+
+    // Reset standard UI
+    result.innerHTML = "";
+    result.className = "";
+    fill.classList.remove('waiting');
+    fill.style.transition = 'width 0.15s cubic-bezier(0.4, 0, 0.2, 1)';
+    fill.style.width = "0%";
+    meterContainer.className = "meter active";
+
+    // Clear old ping badges
+    document.querySelectorAll('.ping-badge').forEach(b => {
+        b.className = "ping-badge";
+        b.textContent = "";
+    });
+
+    const url = "speedtest.bin?cb=" + Date.now();
+    const startTime = performance.now();
+
+    try {
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error("See the README to complete speedtest setup by generating the speedtest.bin file.");
+      }
+      
+      const reader = response.body.getReader();
+
+      let received = 0;
+      let prev = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        received += value.length;
+
+        const pct = (received / fixedSizeBytes) * 100;
+        if (pct === 100 || pct - prev > 3) {
+          prev = pct;
+          fill.style.width = Math.min(pct, 100) + "%";
+        }
+      }
+
+      const timeMs = performance.now() - startTime;
+      const mbps = (fixedSizeBytes * 8) / (1e3 * timeMs);
+
+      fill.style.width = '100%';
+      meterContainer.classList.add('done');
+      result.classList.add('done-text');
+      
+      persistentSpeedData = `Download Speed: ${mbps.toFixed(2)} Mbps<br>Time: ${timeMs.toFixed(2)} ms`;
+      result.innerHTML = persistentSpeedData + `<br><span class="muted-text">[ Testing the services next... ]</span>`;
+      
+      // Visual indicator that we are in a transition phase
+      fill.classList.add('waiting');
+
+      // Phase 2: Wait 3s, then Ping Matrix
+      setTimeout(runPingPhase, 3000);
+
+    } catch (err) {
+      result.className = "error-text";
+      result.innerHTML = err.message;
+      btn.disabled = false;
+      meterContainer.classList.remove('active');
+    }
+  }
+
+  async function runPingPhase() {
+    if (activeServices.length === 0) {
+        btn.disabled = false;
+        return;
+    }
+
+    result.className = "";
+    result.innerHTML = persistentSpeedData + `<br><span class="epic-text">Pinging services...</span>`;
+
+    meterContainer.className = "meter epic-container";
+    fill.classList.remove('waiting');
+    fill.style.transition = 'none';
+    fill.style.width = "0%";
+    fill.className = "fill epic";
+
+    void fill.offsetWidth; // force DOM reflow
+    fill.style.transition = 'width 0.2s ease';
+
+    let completed = 0;
+
+    const pingPromises = activeServices.map(async (srv, i) => {
+        const badge = document.getElementById(`ping-${i}`);
+        badge.textContent = "···";
+        badge.className = "ping-badge show";
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1500);
+        const start = performance.now();
+
+        let isUp = false;
+        let pingTime = 0;
+
+        try {
+            // no-cors is required to prevent browser blocking the request to unknown origins
+            await fetch(srv.url, { mode: 'no-cors', cache: 'no-store', signal: controller.signal });
+            pingTime = Math.round(performance.now() - start);
+            isUp = true;
+        } catch (err) {
+            isUp = false;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+
+        completed++;
+        fill.style.width = (completed / activeServices.length) * 100 + "%";
+
+        if (isUp) {
+            badge.textContent = `${pingTime}ms`;
+            badge.classList.add('up');
+        } else {
+            badge.textContent = "DOWN";
+            badge.classList.add('down');
+        }
+    });
+
+    await Promise.all(pingPromises);
+
+    // Cleanup Phase
+    setTimeout(() => {
+        result.className = "";
+        result.innerHTML = persistentSpeedData + `<br><span class="done-text" style="font-weight: 600;">Diagnostics Complete.</span>`;
+        fill.className = "fill";
+        meterContainer.className = "meter done";
+        btn.disabled = false;
+    }, 500);
+  }
+</script>
+
+</body>
+</html>
