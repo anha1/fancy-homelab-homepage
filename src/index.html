@@ -311,13 +311,17 @@
   async function start() {
     btn.disabled = true;
 
-    // Reset standard UI
+    // Reset standard UI and ensure animations are cleared
     result.innerHTML = "";
     result.className = "";
-    fill.classList.remove('waiting');
-    fill.style.transition = 'width 0.15s cubic-bezier(0.4, 0, 0.2, 1)';
-    fill.style.width = "0%";
     meterContainer.className = "meter active";
+    fill.className = "fill";
+    
+    // Anti-Glitch Fix: Snap to 0% instantly before re-enabling transition
+    fill.style.transition = 'none';
+    fill.style.width = "0%";
+    void fill.offsetWidth; // Force DOM reflow
+    fill.style.transition = 'width 0.15s cubic-bezier(0.4, 0, 0.2, 1)';
 
     // Clear old ping badges
     document.querySelectorAll('.ping-badge').forEach(b => {
